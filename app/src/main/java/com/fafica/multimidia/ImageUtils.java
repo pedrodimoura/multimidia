@@ -10,6 +10,7 @@ import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Environment;
 import android.text.format.DateFormat;
+import android.util.Log;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,8 +44,11 @@ public class ImageUtils {
             new String[]{TAG_LAST_PICTURE, TAG_LAST_VIDEO, TAG_LAST_AUDIO};
 
     public static File newMedia(int type) {
+        Log.d("TAGM", "Criando nova mídia do tipo -> " + type);
         String mediaName = DateFormat.format(
                 "yyy-MM-dd_hhmmss", new Date()).toString();
+
+        Log.d("TAGM", "Criando File com o nome -> " + mediaName + EXTENSIONS[type]);
 
         File mediaFile = new File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
@@ -57,12 +61,15 @@ public class ImageUtils {
     }
 
     public static void saveLastMedia(Context context, int type, String media) {
+        Log.d("TAGM", "Salvando última mídia do tipo -> " + EXTENSIONS[type] + ", Path da Mídia -> " + media);
         SharedPreferences sharedPreferences =
                 context.getSharedPreferences(SHARED_PREFS_MEDIA, Context.MODE_PRIVATE);
 
         sharedPreferences.edit()
                 .putString(PREF_KEYS[type], media)
                 .apply();
+
+        Log.d("TAGM", "Salvando no SharedPreferences com a key -> " + PREF_KEYS[type]);
 
         Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
         Uri contentUri = Uri.parse(media);
@@ -71,32 +78,41 @@ public class ImageUtils {
     }
 
     public static String getLastMedia(Context context, int type) {
+        Log.d("TAGM", "Pegando última mídia do tipo -> " + EXTENSIONS[type]);
+
+        Log.d("TAGM", "Path do arquivo -> " + context.getSharedPreferences(SHARED_PREFS_MEDIA, Context.MODE_PRIVATE)
+                .getString(PREF_KEYS[type], null));
+
         return context.getSharedPreferences(SHARED_PREFS_MEDIA, Context.MODE_PRIVATE)
                 .getString(PREF_KEYS[type], null);
     }
 
     public static Bitmap loadImage(File image, int width, int height) {
-        if (width == 0 || height == 0) return null;
+        if (width == 0 || height == 0) {
+            Log.d("TAGM", "Largura e Altura da imagem é 0");
+            return null;
+        } else {
+            Log.d("TAGM", "File Name -> " + image.getName());
+            BitmapFactory.Options bmOptions = new BitmapFactory.Options();
+            bmOptions.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(image.getAbsolutePath(), bmOptions);
 
-        BitmapFactory.Options bmOptions = new BitmapFactory.Options();
-        bmOptions.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(image.getAbsolutePath(), bmOptions);
+            int widthPicture = bmOptions.outWidth;
+            int heightPicture = bmOptions.outHeight;
+            int scale = Math.min(
+                    widthPicture / width,
+                    heightPicture / height
+            );
 
-        int widthPicture = bmOptions.outWidth;
-        int heightPicture = bmOptions.outHeight;
-        int scale = Math.min(
-                widthPicture / width,
-                heightPicture / height
-        );
+            bmOptions.inJustDecodeBounds = false;
+            bmOptions.inSampleSize = scale;
+            bmOptions.inPreferredConfig = Bitmap.Config.RGB_565;
 
-        bmOptions.inJustDecodeBounds = false;
-        bmOptions.inSampleSize = scale;
-        bmOptions.inPreferredConfig = Bitmap.Config.RGB_565;
+            Bitmap bitmap = BitmapFactory.decodeFile(image.getAbsolutePath(), bmOptions);
+            bitmap = rotate(bitmap, image.getAbsolutePath());
 
-        Bitmap bitmap = BitmapFactory.decodeFile(image.getAbsolutePath(), bmOptions);
-        bitmap = rotate(bitmap, image.getAbsolutePath());
-
-        return bitmap;
+            return bitmap;
+        }
     }
 
     private static Bitmap rotate(Bitmap bitmap, String path) {

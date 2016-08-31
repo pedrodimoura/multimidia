@@ -15,6 +15,7 @@
         android:layout_height="150dp"
         android:layout_marginTop="@dimen/activity_vertical_margin"
         android:layout_marginBottom="@dimen/activity_vertical_margin"
+        android:scaleType="centerCrop"
         android:layout_centerHorizontal="true"/>
 
     <Button

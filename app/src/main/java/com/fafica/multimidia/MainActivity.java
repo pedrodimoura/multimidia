@@ -1,6 +1,7 @@
 package com.fafica.multimidia;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -24,10 +25,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private File mFile;
     private ImageView mImageViewPicture;
     LoadImageTask loadImageTask;
-    int imageWidth;
-    int imageHeight;
 
     private Button mButton;
+    private boolean mInit;
+
+    private static final int IMAGE_VIEW_WIDTH = 300;
+    private static final int IMAGE_VIEW_HEIGHT = 300;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,7 +38,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        init();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        this.initComponents();
+        if (!mInit) {
+            mInit = true;
+            init();
+        }
+    }
+
+    private void initComponents() {
+        this.mImageViewPicture = (ImageView) findViewById(R.id.imageViewPicture);
+        this.mButton = (Button) findViewById(R.id.buttonTakePicture);
+        this.mButton.setOnClickListener(this);
     }
 
     private void init() {
@@ -44,21 +62,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         if (picturePath != null)  mFile = new File(picturePath);
 
-        this.mImageViewPicture = (ImageView) findViewById(R.id.imageViewPicture);
-        this.imageWidth = this.mImageViewPicture.getWidth();
-        this.imageHeight = this.mImageViewPicture.getHeight();
-        Log.d("TAG", "Image Width -> " + this.mImageViewPicture.getWidth());
-        Log.d("TAG", "Image Height -> " + this.mImageViewPicture.getHeight());
-        this.mButton = (Button) findViewById(R.id.buttonTakePicture);
-        this.mButton.setOnClickListener(this);
-
         loadImage();
     }
 
     private void loadImage() {
         if (this.mFile != null && mFile.exists()) {
             if (loadImageTask == null || loadImageTask.getStatus() != AsyncTask.Status.RUNNING) {
-                loadImageTask = new LoadImageTask();
+                loadImageTask = new LoadImageTask(MainActivity.this);
                 loadImageTask.execute();
             }
         }
@@ -90,10 +100,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         switch (view.getId()) {
             case R.id.buttonTakePicture:
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+                        ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+                        ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                         openCamera();
                     } else {
-                        ActivityCompat.requestPermissions(MainActivity.this, new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, 0);
+                        ActivityCompat.requestPermissions(MainActivity.this, new String[] {Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.CAMERA}, 0);
                     }
                 } else {
                     openCamera();
@@ -103,9 +115,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     class LoadImageTask extends AsyncTask<Void, Void, Bitmap> {
+
+        private Context mContext;
+
+        public LoadImageTask(Context context) {
+            this.mContext = context;
+        }
+
         @Override
         protected Bitmap doInBackground(Void... voids) {
-            return ImageUtils.loadImage(mFile, imageWidth, imageHeight);
+            return ImageUtils.loadImage(mFile, IMAGE_VIEW_WIDTH, IMAGE_VIEW_HEIGHT);
         }
 
         @Override
@@ -114,7 +133,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (bitmap != null) {
                 Log.d("TAGM", "Bitmap != null");
                 mImageViewPicture.setImageBitmap(bitmap);
-                ImageUtils.saveLastMedia(MainActivity.this, ImageUtils.MEDIA_PICTURE, mFile.getAbsolutePath());
+                ImageUtils.saveLastMedia(mContext, ImageUtils.MEDIA_PICTURE, mFile.getAbsolutePath());
             } else {
                 Log.d("TAGM", "Bitmap == null");
             }
